@@ -2,34 +2,48 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Homework 11</title>
+    <title>Page title</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;1,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./css/style.css" />
   </head>
   <body>
-    <div class="container search">
-      <form class="search-form" id="search-form">
-        <input
-          type="text"
-          name="searchQuery"
-          autocomplete="off"
-          placeholder="Search images..."
-        />
-        <button type="submit">
-          <span class="material-icons">🔍</span>
-        </button>
-      </form>
-    </div>
-    <div class="container render-list">
-      <div class="gallery"></div>
-      <button type="button" class="btn-load-more is-hidden">Load more</button>
-      <a class="btn-to-top" title="Return to top">
-        <span class="material-icons"
-          ><img
-            src="https://img.icons8.com/sf-regular-filled/48/null/double-up.png" /></span
-      ></a>
+    <form class="search-form" id="search-form">
+      <input
+        type="text"
+        name="searchQuery"
+        autocomplete="off"
+        placeholder="Search images..."
+      />
+      <button type="submit" class="btn">Search</button>
+    </form>
+
+    <div class="container gallery"></div>
+
+    <div class="page-load-status">
+      <div class="loader-ellips infinite-scroll-request is-hidden">
+        <span class="loader-ellips__dot"></span>
+        <span class="loader-ellips__dot"></span>
+        <span class="loader-ellips__dot"></span>
+        <span class="loader-ellips__dot"></span>
+      </div>
+      <p class="infinite-scroll-last is-hidden">End of content</p>
+      <p class="infinite-scroll-error is-hidden">No more pages to load</p>
     </div>
 
-    <script src="index.js" type="module"></script>
+    <button type="button" class="load-more btn btn-primary">
+      Load more
+
+      <div class="btn-loader">
+        <span class="spinner" role="status" aria-hidden="true"></span>
+      </div>
+    </button>
+
+    <script src="./index.js" type="module"></script>
   </body>
 </html>

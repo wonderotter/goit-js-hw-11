@@ -1,102 +1,134 @@
-import './sass/index.scss';
-import { PixabayAPI } from './js/PixabayAPI';
-
-import Notiflix from 'notiflix';
+// import InfiniteScroll from 'infinite-scroll';
+// import libraries
+import { Notify } from 'notiflix';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
-import { onScroll, onToTopBtn } from './js/scroll';
-
-const galleryEl = document.querySelector('.gallery');
-const searchForm = document.querySelector('#search-form');
-const loadMoreBtn = document.querySelector('.btn-load-more');
-
-const pixabayApi = new PixabayAPI();
-const PER_PAGE = 40;
-
-let lightbox = new SimpleLightbox('.photo-card a', {
-    captions: true,
-    captionsData: 'alt',
-    captionDelay: 250,
+// import classes
+import PostApiService from './js/posts-servise';
+import LoadMoreBtn from './js/load-more-btn';
+import PageLoadStatus from './js/load-status';
+import formSticky from './js/form-sticky';
+// get elements
+const refs = {
+    formSearch: document.querySelector('.search-form'),
+    gallery: document.querySelector('.gallery'),
+};
+// Create exemples classes
+const loadMoreBtn = new LoadMoreBtn({
+    selector: '.load-more',
+    hidden: true,
 });
 
-searchForm.addEventListener('submit', onSearch);
-loadMoreBtn.addEventListener('click', onLoadMore);
+const pageLoadStatus = new PageLoadStatus({
+    selector: '.page-load-status',
+});
 
-onScroll();
-onToTopBtn();
+const postApiService = new PostApiService();
+const lightbox = new SimpleLightbox('.gallery__item', {
+    captionDelay: 250,
+    captionsData: 'alt',
+    enableKeyboard: true,
+});
+const obsOptions = {
+    root: null,
+    rootMargin: '100px',
+    treshold: 1,
+};
+const observer = new IntersectionObserver(onLoading, obsOptions);
 
-async function onSearch(e) {
+// Make add event listener
+refs.formSearch.addEventListener('submit', onSearch);
+loadMoreBtn.refs.button.addEventListener('click', onLoadMore);
+window.addEventListener('scroll', formSticky);
+
+// Event search btn
+function onSearch(e) {
     e.preventDefault();
+    pageLoadStatus.hide();
 
-    galleryEl.innerHTML = '';
-    loadMoreBtn.classList.add('is-hidden');
+    postApiService.query = e.target.searchQuery.value.trim();
+    loadMoreBtn.show();
+    postApiService.resetPage();
+    clearGallery();
+    fetchPosts();
+}
 
-    const searchQuery = e.currentTarget.elements.searchQuery.value.trim();
-    pixabayApi.query = searchQuery;
+function onLoadMore() {
+    fetchPosts();
 
-    pixabayApi.resetPage();
-    pixabayApi.page = 1;
+    pageLoadStatus.show();
+    observer.observe(pageLoadStatus.refs.pageLoadStatus);
+}
 
-    if (searchQuery === '') {
-        Notiflix.Notify.failure(
-            'The search string cannot be empty. Please specify your search query.'
-        );
-        return;
-    }
+// Get posts
+function fetchPosts() {
+    loadMoreBtn.hide();
+    pageLoadStatus.loadingShow();
 
-    try {
-        const response = await pixabayApi.fetchPhotosByQuery();
-        const totalPicturs = response.data.totalHits;
+    postApiService.fetchPost().then(data => {
+        const curentPage = postApiService.page - 1;
+        postApiService.hits = data.totalHits;
 
-        if (totalPicturs === 0) {
-            Notiflix.Notify.failure(
+        if (!data.totalHits) {
+            loadMoreBtn.hide();
+            pageLoadStatus.errorShow();
+
+            return Notify.failure(
                 'Sorry, there are no images matching your search query. Please try again.'
             );
-            return;
-        }
-        createMarkup(response.data.hits);
-        lightbox.refresh();
-        scrollPage();
-        Notiflix.Notify.success(`Hooray! We found ${totalPicturs} images.`);
-
-        if (totalPicturs < 40) {
-            loadMoreBtn.classList.add('is-hidden');
-            return;
         }
 
-        loadMoreBtn.classList.remove('is-hidden');
-    } catch (error) {
-        console.log(error);
-    }
-}
-
-async function onLoadMore() {
-    pixabayApi.page += 1;
-    try {
-        const response = await pixabayApi.fetchPhotosByQuery();
-        const lastPage = Math.ceil(response.data.totalHits / PER_PAGE);
-
-        createMarkup(response.data.hits);
-        if (lastPage === pixabayApi.page) {
-            Notiflix.Notify.failure(
-                "We're sorry, but you've reached the end of search results."
-            );
-            loadMoreBtn.classList.add('is-hidden');
+        if (!data.hits.length) {
+            loadMoreBtn.hide();
+            pageLoadStatus.lastElemShow();
             return;
         }
-        lightbox.refresh();
-        scrollPage();
-    } catch (error) {
-        console.log(error);
-    }
+        renderPost(data.hits);
+        if (curentPage === 1) {
+            Notify.success(`Hooray! We found ${postApiService.hits} images.`);
+            loadMoreBtn.show();
+        }
+        pageLoadStatus.enable();
+    });
+}
+// Create markup posts
+function renderPost(data) {
+    let markupPost = data
+        .map(
+            ({
+                largeImageURL,
+                webformatURL,
+                tags,
+                likes,
+                views,
+                comments,
+                downloads,
+            }) => {
+                return `<a class="gallery__item" href="${largeImageURL}">
+                  <div class="photo-card">
+                      <img src="${webformatURL}" alt="${tags}" loading="lazy" />
+                      <div class="info">
+                        <p class="info-item"><b>Likes</b> ${likes}</p>
+                        <p class="info-item"><b>Views</b> ${views}</p>
+                        <p class="info-item"><b>Comments</b> ${comments}</p>
+                        <p class="info-item"><b>Downloads</b> ${downloads}</p>
+                      </div>
+                    </div>
+                 </a>`;
+            }
+        )
+        .join('');
+
+    refs.gallery.insertAdjacentHTML('beforeend', markupPost);
+    lightbox.refresh();
+    // smoothScroll();
 }
 
-function createMarkup(hits) {
-    const markup = createGalleryCard(hits);
-    galleryEl.insertAdjacentHTML('beforeend', markup);
+function clearGallery() {
+    refs.gallery.innerHTML = '';
 }
 
-function scrollPage() {
+function smoothScroll() {
     const { height: cardHeight } = document
         .querySelector('.gallery')
         .firstElementChild.getBoundingClientRect();
@@ -104,5 +136,14 @@ function scrollPage() {
     window.scrollBy({
         top: cardHeight * 2,
         behavior: 'smooth',
+    });
+}
+
+async function onLoading(entries) {
+    await entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            console.log(entry.isIntersecting);
+            fetchPosts();
+        }
     });
 }
